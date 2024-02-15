@@ -16,16 +16,16 @@ Clone the git repository to your local machine by running the following command 
 
 `git clone git@github.com:nlebovits/mach-superstudio.git`
 
-## 7. Install Dependencies with Poetry
+## 5. Install Dependencies with Poetry
 In your command line interface (CLI), navigate to `/mach-superstudio` and then run `poetry install`.
 
 
-## 7. Configure Poetry Virtual Environment
+## 6. Configure Poetry Virtual Environment
 Execute the following to create a virtual environment in the project directory:
 
 `poetry config virtualenvs.in-project true`
 
-## 8. Activate the Virtual Environment
+## 7. Activate the Virtual Environment
 Activate the virtual environment by running:
 
 `poetry shell`
