@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "mach-superstudio"
+version = "0.1.0"
+description = ""
+authors = ["nlebovits <nissim.lebovits@vanderbilt.edu>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+geopandas = "^0.14.3"
+geemap = "^0.31.0"
+ipykernel = "^6.29.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
