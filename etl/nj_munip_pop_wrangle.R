@@ -12,10 +12,9 @@ library(here)
 
 options(tigris_use_cache = TRUE, scipen = 999)
 
-here()
 
 ### import muni pop data------------------------------------
-nj_muni_pop <- read_csv('../data/nj_muni_pop_1940_2020.csv') %>% 
+nj_muni_pop <- read_csv("./data/nj_muni_pop_1940_2020.csv") %>%
   clean_names()
 
 nj_muni_pop$municipality[nj_muni_pop$municipality == "West Paterson borough"] <- "Woodland Park borough"
@@ -29,51 +28,66 @@ nj_muni_pop$municipality[nj_muni_pop$municipality == "Verona Borough township"] 
 ### import census boundaries + data------------------------------------
 
 # boundaries
-nj_county_subdivisions <- county_subdivisions("NJ") %>% clean_names() %>% select(geoid, namelsad)
+nj_county_subdivisions <- county_subdivisions("NJ") %>%
+  clean_names() %>%
+  select(geoid, namelsad)
 
 
 
 combined <- full_join(nj_county_subdivisions,
-                      nj_muni_pop,
-                      by = c("namelsad" = "municipality"))
+  nj_muni_pop,
+  by = c("namelsad" = "municipality")
+)
 
 # census data
 
 
 
-vacancy20 <- get_acs(geography = "county subdivision",
-                     state = "NJ",
-                     variables = c("B25002_001", # total units
-                                   "B25002_003"), # vacant units
-                     year = 2020,
-                     output = 'wide') %>%
-  rename(tot = B25002_001E,
-         vac = B25002_003E) %>%
+vacancy20 <- get_acs(
+  geography = "county subdivision",
+  state = "NJ",
+  variables = c(
+    "B25002_001", # total units
+    "B25002_003"
+  ), # vacant units
+  year = 2020,
+  output = "wide"
+) %>%
+  rename(
+    tot = B25002_001E,
+    vac = B25002_003E
+  ) %>%
   mutate(pct_res_vac = vac / tot * 100) %>%
   clean_names() %>%
   select(geoid, pct_res_vac)
 
-pop20 <- get_decennial(geography = "county subdivision",
-                       state = "NJ",
-                       variables = "P1_001N", 
-                       year = 2020,
-                       sumfile = "dhc",
-                       geometry = TRUE)%>% 
+pop20 <- get_decennial(
+  geography = "county subdivision",
+  state = "NJ",
+  variables = "P1_001N",
+  year = 2020,
+  sumfile = "dhc",
+  geometry = TRUE
+) %>%
   rename(tot_pop_2020 = value)
 
-pop10 <- get_decennial(geography = "county subdivision",
-                       state = "NJ",
-                       variables = "P001001", 
-                       year = 2010,
-                       sumfile = "sf1") %>% 
+pop10 <- get_decennial(
+  geography = "county subdivision",
+  state = "NJ",
+  variables = "P001001",
+  year = 2010,
+  sumfile = "sf1"
+) %>%
   rename(tot_pop_2010 = value) %>%
   select(GEOID, tot_pop_2010)
 
-pop00 <- get_decennial(geography = "county subdivision",
-                       state = "NJ",
-                       variables = "P001001", 
-                       year = 2000,
-                       sumfile = "sf1") %>% 
+pop00 <- get_decennial(
+  geography = "county subdivision",
+  state = "NJ",
+  variables = "P001001",
+  year = 2000,
+  sumfile = "sf1"
+) %>%
   rename(tot_pop_2000 = value) %>%
   select(GEOID, tot_pop_2000)
 
@@ -106,7 +120,7 @@ full <- combined %>%
 
 
 # sourced from here: https://westjersey.org/popcap_04.htm
-cape_may_dat <- read.table(header=TRUE, text="
+cape_may_dat <- read.table(header = TRUE, text = "
 MUNICIPALITY,1910,1915,1920,1930,1940,1950,1960,1970,1980,1990,2000
 'Avalon borough',230,323,197,343,313,428,695,1283,2162,1809,2143
 'Cape May city',2471,2513,2999,2637,2583,3607,4477,4392,4853,4668,4034
@@ -127,27 +141,31 @@ MUNICIPALITY,1910,1915,1920,1930,1940,1950,1960,1970,1980,1990,2000
 'Wildwood city',898,3858,2790,5330,5150,5475,4690,4110,4913,4484,5436
 'Wildwood Crest borough',103,317,161,738,661,1772,3011,3483,4149,3631,3980
 'Woodbine borough',2399,1869,1406,2164,2111,2417,2823,2625,2809,2678,2716
-", sep=",", quote="'", fill=TRUE) %>% clean_names()
+", sep = ",", quote = "'", fill = TRUE) %>% clean_names()
 
 cape_may_dat <- left_join(full %>%
-                            filter(is.na(tot_pop_1990)), cape_may_dat, by = c("namelsad" = "municipality")) %>% 
-  select(-c(tot_pop_1940,
-            tot_pop_1950,                 
-            tot_pop_1960,                
-            tot_pop_1970,                 
-            tot_pop_1980,                 
-            tot_pop_1990,
-            x1910,
-            x1915,
-            x1920,
-            x1930,
-            x2000)) %>%
-  rename(tot_pop_1940 = x1940,
-         tot_pop_1950 = x1950,
-         tot_pop_1960 = x1960,
-         tot_pop_1970 = x1970,
-         tot_pop_1980 = x1980,
-         tot_pop_1990 = x1990) %>%
+  filter(is.na(tot_pop_1990)), cape_may_dat, by = c("namelsad" = "municipality")) %>%
+  select(-c(
+    tot_pop_1940,
+    tot_pop_1950,
+    tot_pop_1960,
+    tot_pop_1970,
+    tot_pop_1980,
+    tot_pop_1990,
+    x1910,
+    x1915,
+    x1920,
+    x1930,
+    x2000
+  )) %>%
+  rename(
+    tot_pop_1940 = x1940,
+    tot_pop_1950 = x1950,
+    tot_pop_1960 = x1960,
+    tot_pop_1970 = x1970,
+    tot_pop_1980 = x1980,
+    tot_pop_1990 = x1990
+  ) %>%
   filter(!is.na(tot_pop_1990))
 
 
@@ -404,28 +422,28 @@ long_data <- full %>%
 
 
 
-long_data %>%
-  #filter(pct_pop_change_1950_to_2020 < 0) %>%
-  #filter(geoid %in% linear_back_imput) %>%
-  ggplot(aes(x = year, y = tot_pop, group = namelsad)) +
-  geom_line(aes(color = "darkgrey")) + # Color based on the new color_group column
-  #geom_smooth(method = "lm", se = FALSE, lty = 'dashed') +
-  scale_color_identity() + # Use the actual color names stored in color_group
-  stat_summary(fun = median, geom = "line", aes(group = 1), color = "darkred", size = 1) + # Average line
-  facet_wrap(~size_class, scales = "free", nrow = 2) +
-  theme(legend.position = "none") +
-  theme_minimal()
+# long_data %>%
+#   #filter(pct_pop_change_1950_to_2020 < 0) %>%
+#   #filter(geoid %in% linear_back_imput) %>%
+#   ggplot(aes(x = year, y = tot_pop, group = namelsad)) +
+#   geom_line(aes(color = "darkgrey")) + # Color based on the new color_group column
+#   #geom_smooth(method = "lm", se = FALSE, lty = 'dashed') +
+#   scale_color_identity() + # Use the actual color names stored in color_group
+#   stat_summary(fun = median, geom = "line", aes(group = 1), color = "darkred", size = 1) + # Average line
+#   facet_wrap(~size_class, scales = "free", nrow = 2) +
+#   theme(legend.position = "none") +
+#   theme_minimal()
 
 
 ### write-----------------------------------------------------------------------------------
-st_write(full, '../data/nj_muni_pop_wide.geojson')
-st_write(long_data, '../data/nj_muni_pop_long.geojson')
+st_write(full, "./data/nj_muni_pop_wide.geojson")
+st_write(long_data, "./data/nj_muni_pop_long.geojson")
 
-tm <- tm_shape(long_data) +
-                   tm_polygons(col = "tot_pop", border.alpha = 0, palette = 'viridis', style = "fisher", colorNA = "lightgrey", title = "Total Population") +
-                   tm_facets(along = "year") +
-                   tm_layout(frame = FALSE)
-
-suppressMessages(
-  tmap_animation(tm, "tot_pop_animation.gif", delay = 50)
-)
+# tm <- tm_shape(long_data) +
+#                    tm_polygons(col = "tot_pop", border.alpha = 0, palette = 'viridis', style = "fisher", colorNA = "lightgrey", title = "Total Population") +
+#                    tm_facets(along = "year") +
+#                    tm_layout(frame = FALSE)
+#
+# suppressMessages(
+#   tmap_animation(tm, "tot_pop_animation.gif", delay = 50)
+# )
