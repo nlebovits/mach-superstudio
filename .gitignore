@@ -1,5 +1,6 @@
 
 *.csv
+*.Rhistory
 
 # data repo
 data/
