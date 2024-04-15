@@ -1,12 +1,329 @@
 ---
 title: "MACH Superstudio Clustering"
+subtitle: "Identifying smaller cities in New Jersey for coastal climate adaptation"
+authors: "Nissim Lebovits"
 date: today
+project:
+  type: website
+  output-dir: docs
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    toc_float: true
+    theme: cosmo
+    code-fold: false
+    number-sections: true
+    fontsize: "11"
+editor: source
+editor_options:
+  markdown:
+    wrap: sentence
+execute:
+  warning: false
+  error: false
+  messages: false
+  echo: false
+  cache: false
 ---
 
-## Quarto
+## Summary
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+## Introduction
+
+## Motivation
+
+## Context
+
+## Feature Selection and Engineering
+
+```{r setup}
+source("config.R")
+source("fns.R")
+
+
+required_packages <- c("tidyverse", "sf", "diceR", "conflicted", "mclust", "janitor", "tmap",
+                       "formattable", "factoextra", "sfarrow", 'psych', 'nFactors', 'arrow',
+                       'corrplot')
+install_and_load_packages(required_packages)
+
+filter <- dplyr::filter
+select <- dplyr::select
+
+base_path <- './data'
+
+clust_dat_path <- file.path(base_path, 'clustering_data.geojson')
+dat <- st_read(clust_dat_path, quiet = TRUE)
+
+dat <- dat %>%
+        mutate(pct_70_year_pop_change = (tot_pop_2020 - tot_pop_1950)/ tot_pop_1950 * 100)
+
+cluster_vars <- c('pov_rt', 'flood_risk', 'pct_70_year_pop_change', 'developed_high_intensity', 'tot_pop_2020')
+```
+
+### Variable Selection
+
+#### Total Population
+
+#### Income
+
+#### Population Change
+
+#### Industrial Development
+
+#### Residential Vacancy
+
+#### Flood Risk
+
+### Exploratory Analysis
+
+```{r corrplot}
+  corrplot(cor(dat %>% st_drop_geometry() %>% select(all_of(cluster_vars)) %>% na.omit()), 
+           method = "number", 
+           type = "lower", 
+           tl.col = "black", 
+           tl.cex = 0.7, 
+           number.cex = .7)
+```
+
+```{r density plots}
+# Density plot for flood risk
+ggplot(dat, aes(x = flood_risk)) +
+    geom_density(alpha = 0.4, fill = "#00b1bfff", col = NA) +
+    #scale_x_sqrt() +
+    labs(title = "Density Plot of Flood Risk") +
+    theme_minimal()
+
+# Density plot for percent 70-year population change
+ggplot(dat, aes(x = pct_70_year_pop_change)) +
+    geom_density(alpha = 0.4, fill = "#00b1bfff", col = NA) +
+    scale_x_log10() +
+    labs(title = "Density Plot of 70-Year Population Change (%)") +
+    theme_minimal()
+
+# Density plot for poverty rate
+ggplot(dat, aes(x = pov_rt)) +
+    geom_density(alpha = 0.4, fill = "#00b1bfff", col = NA) +
+    scale_x_log10() +
+    labs(title = "Density Plot of Poverty Rate") +
+    theme_minimal()
+
+# Density plot for total population in 2020
+ggplot(dat, aes(x = tot_pop_2020)) +
+    geom_density(alpha = 0.4, fill = "#00b1bfff", col = NA) +
+    scale_x_log10() +
+    labs(title = "Density Plot of Total Population 2020") +
+    theme_minimal()
+
+# Density plot for developed high intensity
+ggplot(dat, aes(x = developed_high_intensity)) +
+    geom_density(alpha = 0.4, fill = "#00b1bfff", col = NA) +
+    scale_x_log10() +
+    labs(title = "Density Plot of Developed High Intensity Areas") +
+    theme_minimal()
+
+```
+
+### Selection and Engineering
+
+```{r wrangle + pca}
+#| include: false
+
+iter_dat <- dat %>%
+            st_drop_geometry() %>%
+            select(all_of(cluster_vars), geoid) %>%
+            na.omit() %>%
+            transmute(
+            log_pov_rt = log1p(pov_rt),
+            log_pop_change = sign(pct_70_year_pop_change) * log1p(abs(pct_70_year_pop_change)),
+            log_industrial = log1p(developed_high_intensity),
+            log_tot_pop = log10(tot_pop_2020),
+            sqrt_flood_risk = flood_risk,
+            geoid = geoid
+            )
+  
+# PCA analysis
+dat_stand_pca <- prcomp(iter_dat %>% select(-geoid), center = TRUE, scale. = FALSE)
+
+# Get the summary of the PCA result
+pca_summary <- summary(dat_stand_pca)
+
+# Kaiser criterion
+kaiser_recommendation <- sum(dat_stand_pca$sdev^2 > 1)
+
+# Jolliffe's criterion
+jolliffe_recommendation <- sum(pca_summary$sdev^2 > (0.7 * mean(pca_summary$sdev^2)))
+
+# Parallel analysis (using fa.parallel from psych package)
+# Adjust to capture the recommended number of factors automatically
+pa_result <- fa.parallel(iter_dat %>% select(-geoid), fm='pa', fa='pc')
+pa_recommendation <- pa_result$ncomp
+
+# VSS and MAP (using vss from psych package, automatically determine from MAP)
+vss_result <- vss(iter_dat %>% select(-geoid), fm = 'pc', plot = FALSE)
+map_recommendation <- which.min(vss_result$map)
+
+# Assuming pca_summary contains the PCA result
+eigenvalues <- pca_summary$sdev^2  # Square to get eigenvalues if sdev are provided
+
+# Calculate the Broken Stick distribution for the number of variables
+n_variables <- length(eigenvalues)
+broken_stick_distribution <- numeric(n_variables)
+for (i in 1:n_variables) {
+  broken_stick_distribution[i] <- sum(1/(i:n_variables))
+}
+broken_stick_distribution <- broken_stick_distribution / sum(broken_stick_distribution)
+
+# Determine the number of components recommended by the Broken Stick method
+broken_stick_recommendation <- as.integer(sum(eigenvalues > broken_stick_distribution))
+
+# Combine recommendations into a vector
+recommendations <- c(kaiser_recommendation, jolliffe_recommendation, pa_recommendation, map_recommendation, broken_stick_recommendation)
+
+# Calculate the mode (most frequent recommendation)
+mode_recommendation <- as.numeric(names(sort(table(recommendations), decreasing = TRUE)[1]))
+
+# Keep only the principal components up to the cutoff
+data_pca <- dat_stand_pca$x[, 1:mode_recommendation] %>% as.data.frame()
+```
 
 ## Clustering
 
-Lorum ipsum
+### Cluster Number Selection
+```{r elbow plot}
+fviz_nbclust(data_pca, kmeans, method = "wss") +
+      theme_minimal()
+```
+
+```{r sil plot}
+fviz_nbclust(data_pca, kmeans, method = "silhouette", k.max = 10) + 
+  theme_minimal()
+```
+
+### Clustering
+
+```{r diceR}
+cc <- consensus_cluster(data_pca, nk = 3, reps = 100, algorithms = 'km', progress = TRUE)
+final_class_df <- maj_vote_2_map(cc, iter_dat)
+```
+
+## Results
+
+```{r cluster distribution in PCA space}
+# colnames(data_pca)
+# 
+# to_plot <- cbind(data_pca, final_class_df$final_class) %>%
+#               rename(pc1 = `.`,
+#                      class = `final_class_df$final_class`)
+# 
+# ggplot(to_plot, aes(x = pc1, y = color = class)) +
+#   geom_bar() +
+#   labs(title = "Clusters",
+#        x = "Component #1",
+#        y = "Component #2",
+#        color = "Cluster") +
+#   theme_minimal() +
+#   scale_color_manual(values = cluster_palette)
+```
+
+```{r map}
+tmap_mode('plot')
+
+tm_shape(final_class_df) +
+  tm_polygons(col = "final_class", palette = cluster_palette, border.col = 'white', border.alpha = 0.3, lwd = 0.5) +
+tm_view(view.legend.position = c("right", "bottom")) +
+tm_layout(legend.outside = TRUE, frame = FALSE)
+```
+
+```{r munis per cluster}
+ggplot(final_class_df, aes(x =final_class, fill =final_class)) + 
+  geom_bar() +
+  labs(title = "Municipalities per Cluster",
+       x = "Cluster",
+       y = "Total Municipalities") +
+  theme_minimal() +
+  scale_fill_manual(values = cluster_palette)
+```
+
+```{r pop per cluster}
+ggplot(final_class_df, aes(x = as.character(final_class), y = tot_pop_2020, fill = as.character(final_class))) + 
+  geom_col() +
+  labs(title = "Total Population per Cluster",
+       x = "Cluster",
+       y = "Total Population") +
+  theme_minimal() +
+  scale_fill_manual(values = cluster_palette)
+```
+
+```{r boxplots}
+invisible(purrr::walk(cluster_vars, ~print(box_plot(final_class_df, .x, "final_class"))))
+```
+
+```{r final map}
+tmap_mode('view')
+
+tm_shape(final_class_df) +
+  tm_polygons(col = "final_class", palette = cluster_palette, border.col = 'white', border.alpha = 0.3, lwd = 0.7, popup.vars = c("namelsad", "final_class", "pov_rt", "tot_pop_2020", "pct_70_year_pop_change", "flood_risk")) +
+tm_view(view.legend.position = c("right", "bottom"))
+```
+
+## Discussion
+
+### Observations
+
+#### Capacity Issues
+
+```{r capacity plot}
+final_class_df %>%
+  filter(final_class == "1") %>%
+  ggplot(aes(x = tot_pop_2020)) +
+  geom_density(alpha = 0.4, fill = "#ff4f1e", color = NA) +
+  theme_minimal()
+
+final_class_df %>%
+  filter(final_class == "1",
+         tot_pop_2020 < 10000) %>%
+  ggplot(aes(x = tot_pop_2020)) +
+  geom_density(alpha = 0.4, fill = "#ff4f1e", color = NA) +
+  theme_minimal()
+```
+#### Flood Risk
+There are some outliers in flood risk. Factor this into the final site selection.
+```{r flood risk plot}
+final_class_df %>%
+  filter(final_class == "1") %>%
+  ggplot(aes(x = flood_risk)) +
+  geom_density(alpha = 0.4, fill = "#ff4f1e", color = NA) +
+  theme_minimal()
+```
+
+#### Poverty
+There are some outliers in poverty. Factor this into the final site selection.
+```{r flood risk plot}
+final_class_df %>%
+  filter(final_class == "1") %>%
+  ggplot(aes(x = pov_rt)) +
+  geom_density(alpha = 0.4, fill = "#ff4f1e", color = NA) +
+  theme_minimal()
+```
+
+### Limitations
+
+### Next Steps
+
+#### Final Suggested Sites
+```{r suggested sites}
+tmap_mode('view')
+
+final_sites <- final_class_df %>%
+                filter(final_class == "1",
+                       tot_pop_2020 > 500) %>%
+                mutate(scaled_flood_risk = scale(flood_risk)) %>%
+                filter(scaled_flood_risk > 0)
+
+tm_shape(final_sites) +
+  tm_polygons(col = "#ff4f1e",  border.col = 'white', border.alpha = 0.3, lwd = 0.7, popup.vars = c("namelsad", "final_class", "pov_rt", "tot_pop_2020", "pct_70_year_pop_change", "flood_risk")) +
+tm_view(view.legend.position = c("right", "bottom"))
+```
+
+## Recommendations

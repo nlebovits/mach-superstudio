@@ -1,38 +1,59 @@
 [
   {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "mach-superstudio",
-    "section": "",
-    "text": "Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see https://quarto.org."
+    "objectID": "index.html#introduction",
+    "href": "index.html#introduction",
+    "title": "MACH Superstudio Clustering",
+    "section": "2 Introduction",
+    "text": "2 Introduction"
   },
   {
-    "objectID": "index.html#quarto",
-    "href": "index.html#quarto",
-    "title": "mach-superstudio",
-    "section": "",
-    "text": "Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see https://quarto.org."
+    "objectID": "index.html#motivation",
+    "href": "index.html#motivation",
+    "title": "MACH Superstudio Clustering",
+    "section": "3 Motivation",
+    "text": "3 Motivation"
+  },
+  {
+    "objectID": "index.html#context",
+    "href": "index.html#context",
+    "title": "MACH Superstudio Clustering",
+    "section": "4 Context",
+    "text": "4 Context"
+  },
+  {
+    "objectID": "index.html#feature-selection-and-engineering",
+    "href": "index.html#feature-selection-and-engineering",
+    "title": "MACH Superstudio Clustering",
+    "section": "5 Feature Selection and Engineering",
+    "text": "5 Feature Selection and Engineering\n\n5.1 Variable Selection\n\n5.1.1 Total Population\n\n\n5.1.2 Income\n\n\n5.1.3 Population Change\n\n\n5.1.4 Industrial Development\n\n\n5.1.5 Residential Vacancy\n\n\n5.1.6 Flood Risk\n\n\n\n5.2 Exploratory Analysis\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n5.3 Selection and Engineering"
   },
   {
     "objectID": "index.html#clustering",
     "href": "index.html#clustering",
-    "title": "mach-superstudio",
-    "section": "Clustering",
-    "text": "Clustering\nLorum ipsum"
+    "title": "MACH Superstudio Clustering",
+    "section": "6 Clustering",
+    "text": "6 Clustering\n\n6.1 Cluster Number Selection\n\n\n\n\n\n\n\n\n\n\n\n\n6.2 Clustering"
   },
   {
-    "objectID": "mach-superstudio.html",
-    "href": "mach-superstudio.html",
-    "title": "mach-superstudio",
-    "section": "",
-    "text": "Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see https://quarto.org."
+    "objectID": "index.html#results",
+    "href": "index.html#results",
+    "title": "MACH Superstudio Clustering",
+    "section": "7 Results",
+    "text": "7 Results"
   },
   {
-    "objectID": "mach-superstudio.html#quarto",
-    "href": "mach-superstudio.html#quarto",
-    "title": "mach-superstudio",
-    "section": "",
-    "text": "Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see https://quarto.org."
+    "objectID": "index.html#discussion",
+    "href": "index.html#discussion",
+    "title": "MACH Superstudio Clustering",
+    "section": "8 Discussion",
+    "text": "8 Discussion\n\n8.1 Observations\n\n8.1.1 Capacity Issues\n\n\n\n\n\n\n\n\n\n\n\n8.2 Limitations\n\n\n8.3 Next Steps\n\n8.3.1 Final Suggested Sites"
+  },
+  {
+    "objectID": "index.html#recommendations",
+    "href": "index.html#recommendations",
+    "title": "MACH Superstudio Clustering",
+    "section": "9 Recommendations",
+    "text": "9 Recommendations"
   },
   {
     "objectID": "notebooks/retreat_index.html",
