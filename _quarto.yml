@@ -7,3 +7,5 @@ navbar:
   left:
     - text: "Clustering"
       href: index.qmd
+    - text: "Index Draft"
+      href: /notebooks/retreat_index.html

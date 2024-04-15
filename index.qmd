@@ -1,5 +1,5 @@
 ---
-title: "mach-superstudio"
+title: "MACH Superstudio Clustering"
 date: today
 ---
 
