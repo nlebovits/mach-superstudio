@@ -1,0 +1,9 @@
+project:
+  type: website
+  output-dir: docs
+
+title: "Mach Superstudio"
+navbar:
+  left:
+    - text: "Clustering"
+      href: index.qmd
