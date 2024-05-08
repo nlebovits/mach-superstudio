@@ -8,11 +8,14 @@ library(FedData)
 library(terra)
 library(exactextractr)
 library(sfdep)
+library(conflicted)
+
+filter <- dplyr::filter
 
 options(tigris_use_cache = TRUE, scipen = 999)
 
 ## load cleaned nj muni pop data
-nj_muni_pop <- st_read('./data/nj_muni_pop_wide.geojson')
+nj_muni_pop <- st_read("./data/nj_muni_pop_wide.geojson")
 
 ### import and aggregate nlcd data------------------------------------
 nj <- states() %>% filter(NAME == "New Jersey")
@@ -29,7 +32,7 @@ nj_nlcd <- get_nlcd(
 )
 
 nj_geom <- nj_muni_pop %>% select(geoid)
-nj_geom$land_cover <- exact_extract(nj_nlcd, nj_muni_pop, 'frac')
+nj_geom$land_cover <- exact_extract(nj_nlcd, nj_muni_pop, "frac")
 nj_muni_nlcd <- nj_geom %>% st_drop_geometry()
 nj_muni_nlcd <- tidyr::unnest(nj_muni_nlcd, land_cover)
 
@@ -60,35 +63,42 @@ nlcd_names <- c(
 
 # Rename the columns of your dataframe
 names(nj_muni_nlcd) <- nlcd_names[names(nj_muni_nlcd)]
-nj_muni_nlcd <- nj_muni_nlcd %>% 
-                  clean_names() 
+nj_muni_nlcd <- nj_muni_nlcd %>%
+  clean_names()
 
 nj_muni_pop_w_nlcd <- nj_muni_pop %>%
-                  left_join(nj_muni_nlcd, by = "geoid")
+  left_join(nj_muni_nlcd, by = "geoid")
 
 
 ### add cejst
-cejst <- st_read('./data/cejst/usa/usa.shp')
+cejst <- st_read("./data/cejst/usa/usa.shp")
 
-nj_cejst <- cejst %>% 
-              filter(SF == "New Jersey") %>%
-              clean_names() %>%
-              rename(geoid = geoid10) %>%
-              filter(st_is_valid(geometry),
-                     !st_is_empty(geometry)) %>% 
-              select(c(p200_i_pfs, fld_pfs)) %>%
-              rename(pov_rt = p200_i_pfs,
-                     flood_risk = fld_pfs) %>%
-              mutate(nb = st_knn(st_point_on_surface(geometry), 5),
-                     wt = st_weights(nb),
-                     pov_lag = st_lag(pov_rt, nb, wt, na_ok = TRUE),
-                     flood_lag = st_lag(flood_risk, nb, wt, na_ok = TRUE),
-                     pov_rt = ifelse(is.na(pov_rt), pov_lag, pov_rt),
-                     flood_risk = ifelse(is.na(flood_risk), flood_lag, flood_risk)
-              ) %>% 
-              select(pov_rt,
-                     flood_risk)
-                     
+nj_cejst <- cejst %>%
+  filter(SF == "New Jersey") %>%
+  clean_names() %>%
+  rename(geoid = geoid10) %>%
+  filter(
+    st_is_valid(geometry),
+    !st_is_empty(geometry)
+  ) %>%
+  select(c(p200_i_pfs, fld_pfs)) %>%
+  rename(
+    pov_rt = p200_i_pfs,
+    flood_risk = fld_pfs
+  ) %>%
+  mutate(
+    nb = st_knn(st_point_on_surface(geometry), 5),
+    wt = st_weights(nb),
+    # pov_lag = st_lag(pov_rt, nb, wt, na_ok = TRUE),
+    flood_lag = st_lag(flood_risk, nb, wt, na_ok = TRUE),
+    # pov_rt = ifelse(is.na(pov_rt), pov_lag, pov_rt),
+    flood_risk = ifelse(is.na(flood_risk), flood_lag, flood_risk)
+  ) %>%
+  select(
+    pov_rt,
+    flood_risk
+  )
+
 
 nj_muni_pop_w_nlcd <- st_transform(nj_muni_pop_w_nlcd, crs = st_crs(nj_cejst))
 
@@ -96,11 +106,13 @@ final <- st_interpolate_aw(nj_cejst, nj_muni_pop_w_nlcd, extensive = FALSE)
 final <- aggregate(final, by = list(nj_muni_pop_w_nlcd$geoid), FUN = sum) |> rename(geoid = Group.1)
 
 tm_shape(final) +
-  tm_polygons(col = 'flood_risk', border.alpha = 0, lwd = 0.1, style = 'jenks', palette = 'viridis') +
-  tm_layout(legend.outside = TRUE,
-            frame = FALSE)
+  tm_polygons(col = "flood_risk", border.alpha = 0, lwd = 0.1, style = "jenks", palette = "viridis") +
+  tm_layout(
+    legend.outside = TRUE,
+    frame = FALSE
+  )
 
-final <- left_join(final, st_drop_geometry(nj_muni_pop_w_nlcd), by = 'geoid')
+final <- left_join(final, st_drop_geometry(nj_muni_pop_w_nlcd), by = "geoid")
 
 ### write outfile
 st_write(final, "./data/clustering_data.geojson")

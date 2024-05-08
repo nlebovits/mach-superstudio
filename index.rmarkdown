@@ -1,0 +1,689 @@
+---
+title: "MACH Superstudio Clustering"
+subtitle: "Identifying smaller cities in New Jersey for coastal climate adaptation"
+authors: "Nissim Lebovits"
+date: today
+project:
+  type: website
+  output-dir: docs
+format: 
+  html:
+    embed-resources: false
+    toc: true
+    toc_float: true
+    theme: cosmo
+    code-fold: false
+    number-sections: true
+    fontsize: "11"
+editor: source
+editor_options:
+  markdown:
+    wrap: sentence
+execute:
+  warning: false
+  error: false
+  messages: false
+  echo: false
+  cache: false
+---
+
+```{r setup}
+source("config.R")
+source("fns.R")
+
+
+required_packages <- c(
+  "tidyverse", "sf", "diceR", "conflicted", "mclust", "janitor", "tmap",
+  "formattable", "factoextra", "sfarrow", "psych", "nFactors", "arrow",
+  "corrplot", "kableExtra"
+)
+install_and_load_packages(required_packages)
+
+filter <- dplyr::filter
+select <- dplyr::select
+
+base_path <- "./data"
+
+clust_dat_path <- file.path(base_path, "clustering_data.geojson")
+dat <- st_read(clust_dat_path, quiet = TRUE)
+
+dat <- dat %>%
+  mutate(
+    pct_70_year_pop_change = (tot_pop_2020 - tot_pop_1950) / tot_pop_1950 * 100,
+    namelsad = str_replace_all(namelsad, "\\b(city|borough|town|township)\\b", ""),
+  ) %>%
+  select(-pov_rt.x) %>%
+  rename(pov_rt = pov_rt.y)
+
+cluster_vars <- c("med_inc", "flood_risk", "pct_70_year_pop_change", "developed_high_intensity", "tot_pop_2020")
+```
+
+
+## Summary
+
+Climate adaptation funding is crucial for coastal regions in the United States, particularly as these areas confront escalating threats like sea-level rise, routine flooding, intensified storm surges, and an increased frequency of extreme weather events. These environmental challenges threaten infrastructure, ecosystems, and human livelihoods, underscoring the urgent need for effective climate adaptation strategies. Despite the necessity of this funding, it is often unevenly distributed, generally favoring larger, more populous areas capable of leveraging greater adaptive capacity. This trend results in smaller, economically distressed communities in New Jersey being disproportionately vulnerable, as they receive less climate adaptation funding compared to their larger counterparts.
+
+To address this inequity, new tools such as the Federal government's Climate and Economic Justice Screening Tool (CEJST) aim to direct adaptation funding toward the most vulnerable communities. However, these efforts often simplify vulnerability on a single axis, overlooking the complex realities of various places experiencing climate vulnerability. Our report highlights a specific group of overlooked places in New Jersey—smaller, declining areas with significant climate risks, using Salem and Atlantic City as case studies. These cities face unique challenges such as limited adaptive capacity, population decline, budget constraints, legacy infrastructure issues, scale mismatch, and high flood risks. By employing a k-means clustering method, we identify locales across New Jersey with shared vulnerabilities, allowing for a targeted and effective approach to climate adaptation.
+
+Our recommendations emphasize the need for a nuanced funding approach that accounts for the unique vulnerabilities of smaller communities, not merely their statistical risk levels. We propose integrating our findings with existing statewide climate adaptation initiatives to foster collaboration and reduce redundancy, enhancing the overall impact of adaptation strategies. Additionally, we advocate for filling data gaps with finer-scale, high-resolution data collection and engaging directly with vulnerable communities to validate and refine our models. This will ensure that our strategies are grounded in reality and effectively meet the specific needs of these communities.
+
+Our approach aims to encourage the provision smaller towns in New Jersey with the necessary tools and resources to not only survive but thrive in the face of growing climate challenges. By focusing on these often-neglected areas, leveraging detailed, location-specific data, and fostering state-wide partnerships, we can ensure a comprehensive and equitable climate adaptation strategy that benefits the entire state, enhancing resilience and sustainability for all residents.
+
+## Introduction
+
+### Adaptation Funding
+
+Funding is critical for coastal climate adaptation in the United States due to the escalating threats posed by sea-level rise, routine flooding, intensified storm surges, and increased frequency of extreme weather events.
+Coastal regions are experiencing severe impacts that jeopardize infrastructure, ecosystems, and human livelihoods.
+Funding climate adaptation involves directing financial resources towards initiatives that enable communities to minimize the risks and potential damages from climate hazards such as storms or droughts.
+Adequate funding supports the development and implementation of resilience strategies, such as enhancing coastal barriers, restoring wetlands, and improving emergency response systems.
+Investing in adaptation measures not only mitigates the adverse effects of climate change but also safeguards public health and safety, preserves local economies dependent on coastal resources, and ensures the long-term viability of these areas against future climate-related challenges.
+
+Around the world, climate adaptation funding is notoriously difficult to track, due partially to the lack of clarity surrounding terms like "adaptation," and also due to the lack of a centralized system to track and account for adaptation funds, whether in the public or private sector.
+Even in the United States, there is no uniform, centralized repository to understand the flows of climate adaptation finance.
+As a result, it is difficult to speak empirically about which communities do and don't receive climate adaptation funding in the United States.
+
+Yet at a broad level, there is consensus among researchers and practitioners that climate adaptation funding is only infrequently a response to community vulnerability (Grecksch and Klock 2020).
+Although places with higher rates of climate exposure tend to be more likely to receive more aid, various studies have found that "available finance is not reaching those most vulnerable to climate impacts and who often have the fewest resources with which to adapt" (WRI "Adaptation Finance explained").
+Internationally, the countries and communities with the most need receive comparably limited funding.
+Rather, funding is distributed on the basis of donor utility (in the case of the private sector) and the capacity of the recipient to absorb and use capital.
+This creates a dynamic in which places with the least adaptive capacity receive the least aid, regardless of their need (Barrett 2014; Weiler et al. 2018).
+
+As in the rest of the world, this trend appears to hold true in New Jersey. While there is limited empirical analysis available for where adaptation funding goes in the state, some proxies are available. For example, the New Jersey Department of Environmental Protection (NJDEP) reports on climate investments made by the NJDEP, New Jersey Board of Public Utilities, and New Jersey Economic Development Authority using funds gained through the Regional Greenhouse Gas Initiative (RGGI). Per these data, it is apparent that money primarily goes to larger places in the state.
+
+
+```{r adapt map}
+rggi_dat <- st_read("data/nj_rggi_data.geojson", quiet = TRUE)
+
+tmap_mode("view")
+
+tm_shape(rggi_dat) +
+  tm_dots(col = "RGGI_AMT", size = "RGGI_AMT", palette = mono_5_green, style = "jenks", border.col = "white", border.alpha = 0.3, alpha = 0.5, title = "RGGI Funding")
+```
+
+
+Although there is no perfect proxy for adaptive capacity, larger places generally demonstrate greater capacity due to several inherent advantages. Urban areas, with their larger populations, typically benefit from more robust hard anbd soft infrastructure, including physical structures like roads and emergency services, and large bureaucratic and governmental apparati. These features contribute to a higher resilience against various challenges, including those posed by climate change. Moreover, larger cities often have access to more substantial budgets and greater political influence, which can facilitate quicker mobilization of resources and more effective implementation of adaptive strategies. This is supported by the presence of diverse industries and a larger tax base, which together enhance the economic stability necessary for sustained adaptation efforts.
+
+
+```{r comp}
+comp <- st_join(dat, rggi_dat) %>%
+  st_drop_geometry() %>%
+  group_by(geoid) %>%
+  summarize(
+    allocated_funding = sum(PROJ_COST),
+    pov_rt = pov_rt,
+    tot_pop_2020 = tot_pop_2020,
+    med_inc = med_inc
+  ) %>%
+  mutate(
+    got_rggi_funds = ifelse(is.na(allocated_funding), "No", "Yes"),
+    allocated_funding = ifelse(is.na(allocated_funding), 0, allocated_funding),
+    alloc_fund_per_cap = allocated_funding / tot_pop_2020
+  ) %>%
+  unique() %>%
+  left_join(., dat %>% select(namelsad, geoid), by = "geoid") %>%
+  st_as_sf()
+
+# # ggplot(comp, aes(x = tot_pop_2020, y = allocated_funding)) +
+# #   geom_point() +
+# #   geom_smooth(method = 'lm', se = FALSE) +
+# #   labs(title = "Allocated NJ RGGI Funding vs. Total Pop (2020)") +
+# #   theme_minimal()
+#
+# ggplot(comp, aes(x = tot_pop_2020, y = allocated_funding)) +
+#   geom_point() +
+#   geom_smooth(method = 'lm', se = FALSE) +
+#   labs(title = "Allocated NJ RGGI Funding vs. Total Pop (2020)",
+#        subtitle = "Funding Data Log-Transformed") +
+#   scale_y_log10() +
+#   theme_minimal()
+#
+# ggplot(comp, aes(x = pov_rt, y = allocated_funding)) +
+#   geom_point() +
+#   geom_smooth(method = 'lm', se = FALSE) +
+#   labs(title = "Allocated NJ RGGI Funding vs. Poverty Rate (2020)",
+#        subtitle = "Funding Data Log-Transformed") +
+#   scale_y_log10() +
+#   theme_minimal()
+#
+# ggplot(comp, aes(x = pov_rt, fill = got_rggi_funds, col = got_rggi_funds)) +
+#   geom_density(alpha = 0.7) +
+#   scale_x_log10() +
+#   facet_wrap(~got_rggi_funds, nrow = 2) +
+#   theme_minimal()
+#
+# # ggplot(comp, aes(x = tot_pop_2020, fill = got_rggi_funds, col = got_rggi_funds)) +
+# #   geom_density(alpha = 0.7) +
+# #   scale_x_log10() +
+# #   facet_wrap(~got_rggi_funds, nrow = 2) +
+# #   theme_minimal()
+# #
+# # ggplot(comp, aes(x = tot_pop_2020, y = pov_rt, color = got_rggi_funds, size = allocated_funding)) +
+# #   geom_point(alpha = 0.5) +
+# #   labs(title = "Allocated NJ RGGI Funding by Population and Poverty Rate",
+# #   subtitle = "Population Data Log-Transformed") +
+# #   geom_vline(xintercept = 10000, linetype = "dashed", color = "black") +
+# #   geom_hline(yintercept = 0.25, linetype = "dashed", color = "black") +
+# #   scale_x_log10() +
+# #   theme_minimal()
+
+library(ggExtra)
+# library(ggMarginal)
+
+library(ggrepel)
+
+ggplot(comp, aes(x = tot_pop_2020, y = med_inc)) +
+  geom_point(alpha = 0.5, aes(color = got_rggi_funds, size = allocated_funding)) +
+  geom_text_repel(data = comp %>% filter(namelsad %in% c("Salem", "Atlantic City", "Trenton", "Newark")), aes(label = namelsad), box.padding = 0.5) +
+  labs(
+    title = "Allocated NJ RGGI Funding by Population and Median Income",
+    # subtitle = "Population Square-Root Transformed",
+    x = "Total Population (2020)",
+    y = "Median Income ($)",
+    size = "Allocated Funding ($)",
+    color = "Got RGGI Funds?"
+  ) +
+  scale_x_sqrt() +
+  theme_minimal()
+
+
+# tm_shape(comp) +
+#   tm_dots(size = 'alloc_fund_per_cap', col = 'pov_rt', palette = 'viridis', popup.vars = c("namelsad", 'alloc_fund_per_cap', 'allocated_funding', 'pov_rt'))
+```
+
+
+### Identifying Vulnerable Places
+
+Given the limited availability of climate adaptation funding compared to what is needed, there is a logic to this dynamic. It makes sense to try to maximize return on investment by focusing on places with large populations and enough adaptive capacity to take full advantage of funding. Yet the result of this logic is that smaller places---including many of the poorest places in New Jersey---are likely to be overlooked in the allocation of climate adaptation funding.
+
+Increasingly, funders of climate adaptation recognize the need to direct resources to the most vulnerable places. At the level of the Federal government, the United States has now committed to directing resources to the most marginalized places. Under the Justice40 initiative, launched in 2023:
+
+> the Federal government has made it a goal that 40 percent of the overall benefits of certain Federal climate, clean energy, affordable and sustainable housing, and other investments flow to disadvantaged communities that are marginalized by underinvestment and overburdened by pollution.
+
+This is an enormous investment in supporting climate adaptation in places that need it most. Yet the question remains of how these vulnerable places are identified---and what blind spots that might still entail.
+
+Various tools have been proposed to identify vulnerable places. In 2003, Cutter et al. created the first social vulnerability index (SoVI), which sought to create a national-scale index of social vulnerability to environmental hazards. The tool was meant to be used to create a scalable way of comparing vulnerability between places at a national level in order to better direct various forms of support, whether monetary, practical, or otherwise.
+
+More recently, in tandem with the Justice40 initiative, the Federal government launched the Climate and Economic Justice Screening Tool (CEJST), which seeks to identify "overburdened and underserved communities" facing challenges related to climate, energy, health, housing, legacy pollution, transportation, water and wastewater, and workforce development.
+CEJST ties explicitly into the context of climate adaptation funding because it is intended to be used to develop "40% of the overall benefits of investments in climate, clean energy, and related areas" to these communities (https://screeningtool.geoplatform.gov/en/about).
+
+
+```{r cejst}
+cejst <- st_read("./data/nj_cejst.geojson", quiet = TRUE) %>% filter(!st_is_empty(geometry))
+
+# codebook <- read.csv("./data/cejst/1.0-codebook.csv")
+
+tmap_mode("plot")
+
+tm_shape(cejst) +
+  tm_polygons(col = "TC", palette = mono_5_orange, style = "jenks", border.col = "white", border.alpha = 0.3, lwd = 0.5, title = "Total Vulnerability Criteria Exceeded") +
+  tm_view(view.legend.position = c("right", "bottom")) +
+  tm_layout(legend.outside = TRUE, frame = FALSE)
+```
+
+
+Other comparable tools include the Center for Disease Control's Social Vulnerability Index (SVI, distinct from Cutter's SoVI), the Environmental Protection Agency's EJScreen, the Environmental Defense Fund's Climate Vulnerability Index, and more.
+In short, there is an increasing proliferation of tools meant to identify the "most vulnerable" places and direct resources and support to them.
+Yet, in thinking of vulnerability as a phenomenon that merely runs from least to most, these tools risk overlooking the different ways in which vulnerability manifests in different types of places.
+
+### A Different Framework
+
+Tools like the SoVI and CEJST are important steps toward more equitable, strategic distribution of funding and other resources to communities that miss it most.
+Yet, much like existing adaptation funding, these tools take too narrow an approach to vulnerability.
+As indices, they conceptualize vulnerability as something running from high to low, on a single axis.
+But as Spielman et al. (2020) write, "vulnerability is not a variable like temperature that runs from hot to cold, but something that manifests itself in many different forms in many different places." Vulnerable places take different forms, having different needs and potential solutions.
+Failing to acknowledge the different types of vulnerable places can result in significant oversights.
+For example, in 2018, researchers at Rutgers University found that "the most economically distressed municipalities in South Jersey receive nearly one third less state aid than similarly impoverished cities and towns in Central and North Jersey" (ttps://whyy.org/articles/study-finds-state-aid-weighted-against-south-jerseys-poorest-cities/).
+Likewise, climate vulnerability takes decidedly different forms across the state of New Jersey.
+In the north, for example, cities on the Passaic River face routine riparian flooding, yet no risk from sea level rise.
+Meanwhile, southern coastal cities like Atlantic City face a high risk from storm surges and issues with coastal erosion.
+Although both places are vulnerable, they face decidedly different hazards, requiring different interventions.
+
+In considering the geography of climate adaptation in coastal New Jersey, our focus shifts beyond just identifying areas of vulnerability to understanding their unique contexts and needs.
+This approach recognizes that vulnerability does not manifest uniformly; each locale, from larger urban centers like Newark and Camden to smaller towns like Salem, presents distinct challenges that demand tailored solutions. In the course of this research, we sought to identify particular types of vulnerable places, understand the driving factors that make them vulnerable, and derive insights that can be scaled to comparable places.
+
+Our research methodology involved an initial assessment using tools such as the CEJST, complemented by a thorough literature review aimed at identifying not only the common challenges these diverse locations face but also exploring potential shared solutions that could be adapted to local conditions. Through this process, we discovered recurring themes among smaller, legacy cities in New Jersey, which include economic distress, underfunded infrastructure projects, and a lack of comprehensive local planning initiatives tailored to specific climate risks. Addressing these issues requires an innovative approach to resource distribution and policy-making that takes into account the nuanced differences in vulnerability and capacity across the state. This nuanced understanding allows for more effective and equitable climate adaptation strategies, ensuring that all communities, regardless of size or economic status, are prepared to meet their unique environmental challenges head-on.
+
+This semester, we focused on Salem City, New Jersey, as a prototypical example of the smaller, economically distressed communities often overlooked in broader climate adaptation strategies.
+Salem, with its population of approximately 5,296, majority of whom are Black (59%), and a high poverty rate (39%), exemplifies the compounded challenges faced by similar municipalities.
+Over the years, Salem has experienced a 42% population decline since 1950, enhancing its vulnerability to economic and environmental stresses, including a 90% flood risk.
+Additionally, the city is burdened with failing drinking water infrastructure and abundant vacant land, yet it holds potential for waterfront redevelopment.
+By studying Salem, we aimed to identify common challenges and explore the efficacy of potential solutions that could be applied to similar towns facing high climate risks, thus ensuring a focused and impactful adaptation strategy.
+Through this study and comparison with similar places, we identified the following core, common challenges.
+
+#### Low Population
+
+The small size of these communities inherently limits their capacity for handling and adapting to change, particularly in the context of climate adaptation.
+Limited administrative resources, reduced civic engagement, and a scarcity of local expertise all contribute to these challenges.
+These constraints are often more pronounced in smaller populations, where even basic adaptation measures can be burdensome to implement without adequate human and financial resources.
+
+
+```{r tot pop map}
+tmap_mode("plot")
+
+tm_shape(dat) +
+  tm_polygons(col = "tot_pop_2020", palette = mono_5_green, style = "jenks", border.col = "white", border.alpha = 0.3, lwd = 0.5, title = "Total Pop. (2020)") +
+  tm_view(view.legend.position = c("right", "bottom")) +
+  tm_layout(legend.outside = TRUE, frame = FALSE)
+```
+
+
+#### Low Median Income
+
+Economically, these places often grapple with low median incomes and high poverty rates, which exacerbate their vulnerability to climate impacts.
+Financial constraints limit the ability of these communities to invest in necessary infrastructure improvements or resilience-building projects.
+This economic strain is not just about limited municipal budgets; it also affects the individual capacity of residents to respond to and recover from climate-related events.
+
+```{r med inc map}
+tmap_mode("plot")
+
+tm_shape(dat) +
+  tm_polygons(col = "med_inc", palette = mono_5_green, style = "jenks", border.col = "white", border.alpha = 0.3, lwd = 0.5, title = "Median Income ($)") +
+  tm_view(view.legend.position = c("right", "bottom")) +
+  tm_layout(legend.outside = TRUE, frame = FALSE)
+```
+
+
+
+#### Zero or Negative Population Growth
+
+Many of these communities have experienced little to no population growth, with some even seeing a decline since the post-industrial era began in the 1960s.
+This demographic shift results in a scale mismatch, where infrastructure originally built for a larger population must now be maintained by a significantly smaller one.
+This mismatch strains local budgets, as there are fewer taxpayers to support the cost of maintaining outdated or oversized infrastructure.
+
+
+```{r pop change map}
+tmap_mode("plot")
+
+tm_shape(dat) +
+  tm_polygons(col = "pct_70_year_pop_change", palette = mono_5_green, style = "jenks", border.col = "white", border.alpha = 0.3, lwd = 0.5, title = "70-Year Population Change (%)") +
+  tm_view(view.legend.position = c("right", "bottom")) +
+  tm_layout(legend.outside = TRUE, frame = FALSE)
+```
+
+
+#### High Residential Vacancy Rates
+
+Linked closely to the problem of population decline is the issue of high residential vacancy rates.
+As populations shrink, the residential built environment does not contract at the same pace, leading to increased vacancies and the associated economic and social challenges.
+This scale mismatch can result in the physical deterioration of the urban fabric and further economic decline, creating a negative feedback loop that exacerbates community vulnerability.
+
+
+```{r res vac map}
+tmap_mode("plot")
+
+tm_shape(dat) +
+  tm_polygons(col = "pct_res_vac", palette = mono_5_green, style = "jenks", border.col = "white", border.alpha = 0.3, lwd = 0.5, title = "Residential Vacancy Rate (%)") +
+  tm_view(view.legend.position = c("right", "bottom")) +
+  tm_layout(legend.outside = TRUE, frame = FALSE)
+```
+
+
+#### Abundant Legacy Industrial Infrastructure
+
+These communities often possess substantial legacy industrial infrastructure, which presents both challenges and opportunities.
+While this infrastructure can sometimes be repurposed to support new industries or community services, it often requires significant investment to update and make it resilient against current and future climate risks.
+The financial and logistical challenges of retrofitting such infrastructure can be formidable, particularly for communities already struggling economically.
+
+
+```{r industry map}
+tmap_mode("plot")
+
+tm_shape(dat) +
+  tm_polygons(col = "developed_high_intensity", palette = mono_5_green, style = "jenks", border.col = "white", border.alpha = 0.3, lwd = 0.5, title = "High Density and/or Industrial Development") +
+  tm_view(view.legend.position = c("right", "bottom")) +
+  tm_layout(legend.outside = TRUE, frame = FALSE)
+```
+
+
+#### High Flood Risk
+
+Many of these communities also face high flood risks, which can exacerbate the effects of other vulnerabilities.
+As noted, sea level rise and other climate-related impacts can mirror the infrastructure and public health challenges already faced by shrinking cities.
+High flood risk can lead to repeated damages, increasing maintenance costs, and can deter new investment in these areas, further straining local economies.
+
+
+```{r flood risk map}
+tmap_mode("plot")
+
+tm_shape(dat) +
+  tm_polygons(col = "flood_risk", palette = mono_5_orange, style = "jenks", border.col = "white", border.alpha = 0.3, lwd = 0.5, title = "Flood Risk (%)") +
+  tm_view(view.legend.position = c("right", "bottom")) +
+  tm_layout(legend.outside = TRUE, frame = FALSE)
+```
+
+
+#### Legacy Pollution
+
+Legacy pollution adds another layer of complexity to the challenges faced by these communities.
+Contaminated sites from previous industrial activities not only pose health risks but also hinder redevelopment efforts, as cleaning up these sites requires substantial financial investment and technical expertise.
+
+#### Social Fragmentation
+
+Social fragmentation, characterized by weakened community bonds and decreased social cohesion, further complicates the ability of these areas to collectively respond to environmental and economic challenges.
+This fragmentation can lead to reduced civic participation and a lack of unified action towards community resilience.
+
+#### Degraded Ecosystems
+
+The environmental degradation of ecosystems in these areas, often a result of industrial activity and urban expansion, reduces their natural capacity to handle climate impacts like flooding and erosion.
+Restoring these ecosystems is crucial for enhancing the overall resilience of these communities.
+
+#### Compounding Risk
+
+The vulnerabilities faced by smaller, declining communities are complex and interconnected, exacerbating each other in ways that deepen their challenges.
+Declining populations often go hand in hand with high socioeconomic difficulties, including increased poverty rates and racial segregation.
+This demographic shrinkage leads to a scale mismatch, where infrastructure and services originally designed for a larger population must now be supported by significantly fewer residents.
+Additionally, these communities grapple with legacy infrastructure and an abundance of vacant properties, increasing their exposure to climate risks while simultaneously diminishing their financial capacity to fund necessary services and hazard mitigation.
+The compounded risks intensify the challenges, leading to cycles of increased vulnerability and disadvantage.
+Struggling with aging and oversized infrastructure that is also at increased risk from climate impacts, these communities face a daunting task: they must manage not only their current vulnerabilities but also the ongoing cycle of economic and demographic decline that continually erodes their ability to effectively respond to environmental and economic challenges.
+
+### Quantifying Common Vulnerability
+
+Tools like SoVI and CEJST are valuable insofar as they allow us to quantify the vulnerability of places acros the United States.
+Yet, as mentioned, they can overlook the nuanced differences between the types of vulnerability that manifest in different places.
+Here, we propose using clustering to more precisely capture the types of vulnerability in New Jersey.
+Per Stafford and Abramowitz (2017), "Cluster analysis groups like observations which allows a researcher to easily identify areas that may face similar types of social vulnerability and could potentially share adaptation and mitigation solutions." Accordingly, we employ cluster analysis as a means of understanding distinct typologies of vulnerability as they exist across a range of geographies in New Jersey, in order to identify similar types of socioeconomic, infrastructural, and climatic vulnerability in order to drive shared adaptation and mitigation solutions.
+
+Above, we laid out challenges common to small, legacy cities in New Jersey facing climate risks.
+As a proof of concept, we've built a statistical clustering model that combines data on these factors to produce a list of municipalities across New Jersey that we identify as worthy of further investigation.
+These constitute small and mid-sized cities with limited financial resources, significant urban issues (e.g., high vacancy), and significant climate vulnerability.
+This is a proof of concept that can (and eventually should) be updated with more granular data, including on other climate hazards.
+However, in the short term, it is an effective tool for motivating further research into these places.
+
+First, we identify a list of indicators that capture the trends we outline above.
+Using correlation analyses and feature engineering, we reduce this to the most parsimonious possible set of variables, which we then feed into our clustering model.
+
+| Variable                  | Source                             | Spatial Resolution | Time Period |
+|----------------|------------------------|----------------|----------------|
+| Total population          | Census Bureau                      | Municipality       | 2020        |
+| Median income             | American Community Survey          | Census tract       | 2020        |
+| Population change         | Census Bureau                      | Municipality       | 1950 - 2020 |
+| Residential vacancy       | Census Bureau                      | Census tract       | 2020        |
+| Flood risk                | CEJST                              | Census tract       | 2020        |
+| Industrial infrastructure | National Land Cover Dataset (USGS) | 30 meters          | 2021        |
+
+To prepare for clustering, we select and transform variables as appropriate.
+We have no multicolinearity in our dataset and normalize variable distributions as needed.
+We then apply principal component analysis (PCA) to retain only the necessary components for clustering, while reducing redundancy.
+We select 3 clusters based on a combination of elbow plot and silhouette scores, seeking to achieve the fewest number of meaningful, interpretable clusters.
+Finally, we run 100 iterations of k-means clustering using the `diceR` package in order to ensure consistent outputs and reproducibility.
+Code is [available on GitHub](https://github.com/nlebovits/mach-superstudio) for further details.
+
+
+```{r wrangle + pca}
+#| include: false
+
+iter_dat <- dat %>%
+  st_drop_geometry() %>%
+  select(all_of(cluster_vars), geoid) %>%
+  na.omit() %>%
+  transmute(
+    log_med_inc = log1p(med_inc),
+    log_pop_change = sign(pct_70_year_pop_change) * log1p(abs(pct_70_year_pop_change)),
+    # log_industrial = log1p(developed_high_intensity),
+    log_tot_pop = log10(tot_pop_2020),
+    flood_risk = flood_risk,
+    geoid = geoid
+  )
+
+# PCA analysis
+dat_stand_pca <- prcomp(iter_dat %>% select(-geoid), center = TRUE, scale. = TRUE)
+
+# Get the summary of the PCA result
+pca_summary <- summary(dat_stand_pca)
+
+# Kaiser criterion
+kaiser_recommendation <- sum(dat_stand_pca$sdev^2 > 1)
+
+# Jolliffe's criterion
+jolliffe_recommendation <- sum(pca_summary$sdev^2 > (0.7 * mean(pca_summary$sdev^2)))
+
+# Parallel analysis (using fa.parallel from psych package)
+# Adjust to capture the recommended number of factors automatically
+pa_result <- fa.parallel(iter_dat %>% select(-geoid), fm = "pa", fa = "pc")
+pa_recommendation <- pa_result$ncomp
+
+# VSS and MAP (using vss from psych package, automatically determine from MAP)
+vss_result <- vss(iter_dat %>% select(-geoid), fm = "pc", plot = FALSE)
+map_recommendation <- which.min(vss_result$map)
+
+# Assuming pca_summary contains the PCA result
+eigenvalues <- pca_summary$sdev^2 # Square to get eigenvalues if sdev are provided
+
+# Calculate the Broken Stick distribution for the number of variables
+n_variables <- length(eigenvalues)
+broken_stick_distribution <- numeric(n_variables)
+for (i in 1:n_variables) {
+  broken_stick_distribution[i] <- sum(1 / (i:n_variables))
+}
+broken_stick_distribution <- broken_stick_distribution / sum(broken_stick_distribution)
+
+# Determine the number of components recommended by the Broken Stick method
+broken_stick_recommendation <- as.integer(sum(eigenvalues > broken_stick_distribution))
+
+# Combine recommendations into a vector
+recommendations <- c(kaiser_recommendation, jolliffe_recommendation, pa_recommendation, map_recommendation, broken_stick_recommendation)
+
+# Calculate the mode (most frequent recommendation)
+mode_recommendation <- as.numeric(names(sort(table(recommendations), decreasing = TRUE)[1]))
+
+# Keep only the principal components up to the cutoff
+data_pca <- dat_stand_pca$x[, 1:mode_recommendation] %>% as.data.frame()
+
+# fviz_nbclust(data_pca, kmeans, method = "wss") +
+#       theme_minimal()
+#
+# fviz_nbclust(data_pca, kmeans, method = "silhouette", k.max = 10) +
+#   theme_minimal()
+
+cc <- consensus_cluster(data_pca, nk = 3, reps = 100, algorithms = "km", progress = TRUE)
+final_class_df <- maj_vote_2_map(cc, iter_dat)
+```
+
+
+## Results
+
+Our clustering model produces three clusters:
+
+-   **Cluster 1** comprises roughly 160 municipalities representing only about 75,000 people. Its municipalities have by far the smallest populations on average.
+    They experience fairly high median incomes, small but positive population growth, and low industrial development.
+    They only stand out in terms of flood risk, for which they have the highest scores.
+    These places are vulnerable to climate risks, and may lack adaptive capacity due to their small size, but generally have significant financial resources to address these challenges.
+
+-   **Cluster 2** represents just under 300 municipalities in New Jersey, including nearly 6,000,000 residents.
+    It has high incomes, low flood risk, the highest levels of population growth, low levels of industrial development, and medium to large populations.
+    Places in this cluster generally are not considered vulnerable for our purposes.
+
+-   **Cluster 3** accounts for the remaining 100 or so municipalities and slightly more than 2,500,000 residents.
+    It has by far the highest poverty rates, little or even negative population change, the highest levels of industrial development, and generally small populations on average.
+    It also has significant flood risk, with an average risk of nearly 60%.
+    Places in Cluster 2 sit at the intersection of high risks: both socioeconomic and climatic factors compound to make these places exceptionally vulnerable due to their limited financial resources, low adaptive capacity, and high climate vulnerability.
+    These are the places that this analysis has sought to identify.
+
+
+```{r munis and pop per cluster}
+# Load necessary library
+library(ggpubr)
+
+# First plot
+p1 <- ggplot(final_class_df, aes(x = final_class, fill = final_class)) +
+  geom_bar() +
+  labs(
+    title = "Municipalities per Cluster",
+    x = "Cluster",
+    y = "Total Municipalities",
+    fill = "Cluster"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = cluster_palette) +
+  theme(legend.position = "none")
+
+# Second plot (with legend turned off)
+p2 <- ggplot(final_class_df, aes(x = final_class, y = tot_pop_2020, fill = final_class)) +
+  geom_col() +
+  labs(
+    title = "Total Population per Cluster",
+    x = "Cluster",
+    y = "Total Population"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = cluster_palette) +
+  theme(legend.position = "none") # Turn off the legend
+
+# Arrange the plots side by side
+ggarrange(p1, p2, ncol = 1, nrow = 2)
+```
+
+```{r boxplots}
+box_plot <- function(data, var, color) {
+  title <- paste0("Distribution of ", var)
+  p <- ggplot(data, aes_string(x = "final_class", y = var, color = color, fill = color)) +
+    geom_boxplot(alpha = 0.3) +
+    scale_color_manual(values = cluster_palette, name = "Cluster") +
+    scale_fill_manual(values = cluster_palette, name = "Cluster") +
+    labs(title = title) +
+    theme_minimal() +
+    theme(
+      legend.position = "none",
+      plot.title = element_text(size = 8, face = "bold"),
+      axis.title = element_text(size = 6),
+      axis.text = element_text(size = 6)
+    )
+
+  return(p)
+}
+
+# Generate plots without any legends
+plot_list <- lapply(cluster_vars, function(var) {
+  box_plot(final_class_df, var, "final_class")
+})
+
+# Arrange the plots in a 2x3 grid using ggarrange
+do.call(ggarrange, c(plot_list, list(ncol = 2, nrow = 3)))
+```
+
+```{r final map}
+tmap_mode("view")
+
+tm_shape(final_class_df) +
+  tm_polygons(col = "final_class", palette = cluster_palette, border.col = "white", border.alpha = 0.3, lwd = 0.7, popup.vars = c("namelsad", "final_class", "med_inc", "tot_pop_2020", "pct_70_year_pop_change", "flood_risk"), title = "Cluster") +
+  tm_view(view.legend.position = c("right", "bottom"))
+```
+
+
+## Discussion
+
+In our analysis, we have developed a tool that allows us to refine our focus to a list of fewer than 50 municipalities in New Jersey, identifying them as small, legacy cities at high risk of climate change impacts. This prioritization is crucial as these cities not only require funding but also substantial support in building adaptive capacity. Our approach emphasizes the need for comprehensive support strategies, suggesting that attention must be devoted not just to financial assistance but also to enhancing local capacities. This could involve the provision of specialized training, augmentation of local resources, and exploration of innovative governance structures that can empower these communities to effectively manage and implement climate adaptation strategies.
+
+To refine our list and ensure we target municipalities with both significant need and some foundational capacity to utilize aid effectively, we employed specific criteria. We excluded places with a population of 500 or fewer on the grounds that their extremely limited administrative and financial resources render them nearly incapable of undertaking substantive climate adaptation measures independently. Furthermore, to focus on areas with critical needs, we also filtered out municipalities where the flood risk is below the average observed in the cluster, concentrating our efforts on those with a flood risk of approximately 55% or greater, and with populations ranging from 500 to 100,000. This methodology helps in pinpointing places that are not only in urgent need but also possess enough of an infrastructural baseline to implement and benefit from targeted interventions. Our final list represents a strategic starting point for deeper investigation and intervention, marking a significant step forward in aligning climate adaptation resources with municipalities where the intersection of need and existing capacity can be optimally leveraged for impactful outcomes.
+
+### Final Suggested Sites
+
+
+```{r suggested sites}
+tmap_mode("view")
+
+final_sites <- final_class_df %>%
+  filter(
+    final_class == "3",
+    tot_pop_2020 > 500 & tot_pop_2020 < 100000
+  ) %>%
+  mutate(scaled_flood_risk = scale(flood_risk)) %>%
+  filter(scaled_flood_risk > 0)
+
+tm_shape(final_sites) +
+  tm_polygons(col = "#ff4f1e", border.col = "white", border.alpha = 0.3, lwd = 0.7, popup.vars = c("namelsad", "final_class", "med_inc", "tot_pop_2020", "pct_70_year_pop_change", "flood_risk")) +
+  tm_view(view.legend.position = c("right", "bottom"))
+```
+
+```{r list}
+final_sites %>%
+  st_drop_geometry() %>%
+  select(namelsad, tot_pop_2020, med_inc, flood_risk, pct_res_vac, developed_high_intensity, pct_70_year_pop_change) %>%
+  mutate(
+    tot_pop_2020 = format(tot_pop_2020, big.mark = ",", scientific = FALSE),
+    med_inc = format(med_inc, big.mark = ",", scientific = FALSE),
+    flood_risk = round(flood_risk, 2),
+    pct_res_vac = round(pct_res_vac, 2),
+    developed_high_intensity = round(developed_high_intensity, 2),
+    pct_70_year_pop_change = round(pct_70_year_pop_change, 2)
+  ) %>%
+  rename(
+    name = namelsad,
+    pct_pop_change = pct_70_year_pop_change,
+    high_dens_indust = developed_high_intensity
+  ) %>%
+  arrange(desc(flood_risk)) %>%
+  mutate(rank = row_number()) %>%
+  select(rank, name, everything()) %>%
+  kablerize()
+```
+
+```{r capacity}
+#
+# ggplot(final_sites, aes(x = tot_pop_2020, y = med_inc)) +
+#   geom_point()
+```
+
+
+## Recommendations
+One flaw in using vulnerability indices to direct funding is that it presumes vulnerability can be effectively addressed by simply adjusting funding levels.
+This approach overlooks the complex nature of vulnerability, which manifests differently across various contexts, making a one-size-fits-all funding strategy inadequate.
+Emphasizing the notion that vulnerability manifests in diverse ways is crucial.
+For instance, while larger urban areas might face significant impacts, they often have more robust infrastructures and administrative capacities to utilize larger funding streams effectively.
+In contrast, smaller, more isolated communities may not benefit from increased funding alone without tailored approaches that consider their specific challenges and capacities.
+
+The smaller, climate-vulnerable places that we highlight here deserve adaptation funding not because they are more vulnerable according to conventional indices, but because their vulnerabilities are distinct.
+These communities face a unique set of adaptation challenges that do not present themselves in the same manner as in larger urban areas.
+For example, cities like Trenton and Newark may lack substantial contiguous vacant land that can be converted into nature-based solutions to mitigate climate hazards---a strategy that smaller places like Salem City could implement.
+Therefore, smaller cities in New Jersey should not be viewed merely as liabilities---too small to justify funding, too vulnerable for sustainable habitation---but rather as potential hubs for innovative climate adaptation practices.
+This shift in perspective underscores the need for policies and solutions that are specifically designed to leverage the unique opportunities and address the particular challenges faced by these smaller communities.
+
+Above, we have advanced an argument for funding coastal climate adaptation in New Jersey's smaller towns.
+We've identified common traits shared between these places and, based off of these traits, proposed a framework to identify them using a data-driven approach.
+Furthermore, we have explored a range of potential interventions and directions of inquiry to develop techniques and questions for tackling the unique challenges and opportunities for climate adaptation in these places.
+Based on the considerations laid out above---as well as the questions that have arisen---we outline a set of next steps to guide future thinking about how to promote effective climate adaptation in these places.
+
+### Integrate with Existing Analyses
+
+Various initiatives across New Jersey, such as the New Jersey Department of Environmental Protection, the New Jersey Regional Greenhouse Gas Initiative, and the New Jersey Restoration Tool Organization Suite, are actively engaged in climate adaptation and mitigation efforts.
+To amplify the effectiveness of these efforts, future research should aim to integrate with and build upon these existing projects.
+This approach would foster collaboration, reduce redundancy, and maximize the overall impact of climate adaptation strategies.
+By breaking down silos and encouraging partnerships, researchers and practitioners can leverage collective resources and knowledge, facilitating more comprehensive and robust solutions tailored to the unique environmental challenges facing New Jersey.
+
+### Fill Data Gaps
+
+This analysis underscores the importance of discerning nuanced differences within broader trends, yet it serves primarily as a proof of concept.
+The data utilized, while informative, lack the granularity needed for more targeted interventions.
+To enhance the effectiveness of this research, several steps are recommended for future studies:
+
+1.  **Validate Findings:** Engage with communities identified as vulnerable through a variety of qualitative methods such as web searches, interviews, and power mapping. The objective here is to corroborate and refine the quantitative data, adding layers of nuance that will inform more actionable solutions.
+2.  **Identify More Granular Data:** Pursue finer-scale data collection, such as parcel-level land ownership and high-resolution landcover, which can pinpoint specific areas for targeted climate adaptation efforts.
+3.  **Use Data to Drive Action:** Data must be leveraged to persuade relevant stakeholders---including those in both the public and private sectors---to allocate climate adaptation financing to smaller, underserved communities in New Jersey. It is crucial to consider how to construct a narrative that not only motivates stakeholders but also effectively uses the assembled data to support this narrative, ensuring it resonates with the intended audience.
+
+By focusing on these areas, the research can move beyond its initial stages to become a tool to drive significant climate adaptation initiatives tailored to the unique needs of New Jersey's smaller communities.
+
+### Identify Common Challenges
+
+Quantitative and qualitative research play a crucial role in unearthing trends that are common among smaller, legacy cities in New Jersey, particularly those vulnerable to climate hazards.
+By systematically gathering and analyzing both numerical data and narrative accounts, researchers can form a comprehensive understanding of the unique challenges these cities face.
+This detailed insight is essential for developing targeted strategies that address the specific needs of these communities.
+Recognizing the particular vulnerabilities and capacities of these areas allows for the crafting of more effective and sustainable climate adaptation solutions, tailored to the distinct environmental and socio-economic contexts of this particular type of place.
+Such research not only illuminates the problems but also paves the way for informed decision-making and policy development, ensuring that interventions are both impactful and appropriate for the communities they serve.
+
+### Construct Shared Solutions
+
+Identifying the common challenges faced by smaller, legacy cities in New Jersey should lead directly to the creation of shared solutions that address these unique obstacles.
+The specific issues identified necessitate innovative policy and design approaches, such as establishing collaborative regional governance systems to more effectively advocate for and manage adaptation funding, or employing nature-based solutions to enhance the resilience of aging infrastructure.
+Emphasis should be placed on developing scalable solutions that are not only suitable for modular implementation but also conducive to partnerships and coordination among similar municipalities.
+Such strategies can leverage shared strengths and resources, enabling a collective response that is both efficient and impactful.
+Further research into these areas is essential, as it can refine and expand upon the solutions to ensure they effectively meet the distinct needs of these communities.
+This approach not only addresses the immediate vulnerabilities but also fosters a sustainable model for future adaptation efforts across the state.
+
+## Conclusions
+The approach we have outlined in this report provides a valuable framework for enhancing climate adaptation efforts in New Jersey's smaller, often overlooked communities. It complements tools like the Federal government's Climate and Economic Justice Screening Tool (CEJST), by spotlighting places that, while recognized by CEJST, may still be neglected in terms of funding allocation due to their unique vulnerabilities and capacities. This methodology not only highlights the necessity of tailored adaptation strategies but also underscores the importance of fine-tuning these approaches to better assess and address the specific capacities of these communities.
+
+To build upon the initial findings and extend the depth of our analysis, we recommend taking several next steps. These include ground-truthing our data, which involves engaging directly with the communities identified as vulnerable, to ensure the accuracy and relevance of our insights. Further integration with ongoing climate adaptation initiatives across the state will also be crucial, as it allows for a more coordinated and comprehensive approach to addressing the challenges these smaller communities face. Additionally, an expanded data collection effort focusing on funding allocation and more granular local data will fill existing gaps and provide a clearer picture of where resources are most needed.
+
+By identifying common challenges and constructing shared solutions, we can develop targeted strategies that not only address the immediate needs but also build long-term resilience. This research thus sets the stage for a more informed and effective allocation of climate adaptation resources, ensuring that all communities, regardless of their size or current capacity, are equipped to face the challenges posed by a changing climate. This approach does not merely adapt to current conditions but anticipates future challenges, fostering a proactive and inclusive model for climate resilience in New Jersey.
+

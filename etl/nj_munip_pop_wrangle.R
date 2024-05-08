@@ -9,6 +9,9 @@ library(terra)
 library(exactextractr)
 library(gtools)
 library(here)
+library(conflicted)
+
+filter <- dplyr::filter
 
 options(tigris_use_cache = TRUE, scipen = 999)
 
@@ -42,6 +45,7 @@ combined <- full_join(nj_county_subdivisions,
 # census data
 
 
+vars20 <- load_variables(2020, "acs5")
 
 vacancy20 <- get_acs(
   geography = "county subdivision",
@@ -59,7 +63,26 @@ vacancy20 <- get_acs(
   ) %>%
   mutate(pct_res_vac = vac / tot * 100) %>%
   clean_names() %>%
-  select(geoid, pct_res_vac)
+  select(geoid, pct_res_vac) %>%
+  data.frame()
+
+poverty20 <- get_acs(
+  geography = "county subdivision",
+  state = "NJ",
+  variables = c(
+    "B17001_002", # people in poverty (total)
+    "B06011_001"
+  ),
+  year = 2020,
+  output = "wide"
+) %>%
+  rename(
+    pov_pop = B17001_002E,
+    med_inc = B06011_001E
+  ) %>%
+  clean_names() %>%
+  select(geoid, med_inc) %>%
+  data.frame()
 
 pop20 <- get_decennial(
   geography = "county subdivision",
@@ -100,23 +123,17 @@ pop00to20 <- pop20 %>%
 
 full <- combined %>%
   full_join(st_drop_geometry(pop00to20), by = c("geoid" = "GEOID")) %>%
+  filter(namelsad != "County subdivisions not defined") %>%
   select(geoid, namelsad, NAME, x1940, x1950, x1960, x1970, x1980, x1990, tot_pop_2000, tot_pop_2010, tot_pop_2020) %>%
   rename(tot_pop_1940 = x1940, tot_pop_1950 = x1950, tot_pop_1960 = x1960, tot_pop_1970 = x1970, tot_pop_1980 = x1980, tot_pop_1990 = x1990) %>%
   st_make_valid() %>%
-  mutate(size_class = case_when(
-    tot_pop_2020 > 50000 ~ "Large",
-    tot_pop_2020 <= 50000 & tot_pop_2020 > 10000 ~ "Medium",
-    tot_pop_2020 <= 10000 & tot_pop_2020 > 5000 ~ "Small",
-    TRUE ~ "Very Small"
-  )) %>%
   filter(!st_is_empty(geometry)) %>%
-  # mutate(pct_pop_change_1950_to_2020 = (tot_pop_2020 - tot_pop_1950) / tot_pop_1950,
-  #        pct_pop_change_1950_to_1990 = (tot_pop_1990 - tot_pop_1950) / tot_pop_1950,
-  #        pct_pop_change_1980_to_2020 = (tot_pop_2020 - tot_pop_1980) / tot_pop_1980,
-  #        pct_pop_change_1990_to_2020 = (tot_pop_2020 - tot_pop_1990) / tot_pop_1990) %>%
   full_join(vacancy20, by = "geoid") %>%
+  full_join(poverty20, by = "geoid") %>%
+  # mutate(pov_rt = pov_pop / tot_pop_2020) %>%
   distinct(geoid, .keep_all = TRUE) %>%
-  filter(namelsad != "County subdivisions not defined")
+  filter(!st_is_empty(geometry))
+
 
 
 # sourced from here: https://westjersey.org/popcap_04.htm
