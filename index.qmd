@@ -82,11 +82,11 @@ Around the world, climate adaptation funding is notoriously difficult to track, 
 Even in the United States, there is no uniform, centralized repository to understand the flows of climate adaptation finance.
 As a result, it is difficult to speak empirically about which communities do and don't receive climate adaptation funding in the United States.
 
-Yet at a broad level, there is consensus among researchers and practitioners that climate adaptation funding is only infrequently a response to community vulnerability (Grecksch and Klock 2020).
-Although places with higher rates of climate exposure tend to be more likely to receive more aid, various studies have found that "available finance is not reaching those most vulnerable to climate impacts and who often have the fewest resources with which to adapt" (WRI "Adaptation Finance explained").
+Yet at a broad level, there is consensus among researchers and practitioners that climate adaptation funding is only infrequently a response to community vulnerability (Grecksch & Klöck, 2020).
+Although places with higher rates of climate exposure tend to be more likely to receive more aid, various studies have found that "available finance is not reaching those most vulnerable to climate impacts and who often have the fewest resources with which to adapt" (Adaptation Finance, Explained | World Resources Institute, n.d.).
 Internationally, the countries and communities with the most need receive comparably limited funding.
 Rather, funding is distributed on the basis of donor utility (in the case of the private sector) and the capacity of the recipient to absorb and use capital.
-This creates a dynamic in which places with the least adaptive capacity receive the least aid, regardless of their need (Barrett 2014; Weiler et al. 2018).
+This creates a dynamic in which places with the least adaptive capacity receive the least aid, regardless of their need (Barrett, 2014; Weiler et al., 2018).
 
 As in the rest of the world, this trend appears to hold true in New Jersey. While there is limited empirical analysis available for where adaptation funding goes in the state, some proxies are available. For example, the New Jersey Department of Environmental Protection (NJDEP) reports on climate investments made by the NJDEP, New Jersey Board of Public Utilities, and New Jersey Economic Development Authority using funds gained through the Regional Greenhouse Gas Initiative (RGGI). Per these data, it is apparent that money primarily goes to larger places in the state.
 
@@ -171,6 +171,7 @@ library(ggrepel)
 ggplot(comp, aes(x = tot_pop_2020, y = med_inc)) +
   geom_point(alpha = 0.5, aes(color = got_rggi_funds, size = allocated_funding)) +
   geom_text_repel(data = comp %>% filter(namelsad %in% c("Salem", "Atlantic City", "Trenton", "Newark")), aes(label = namelsad), box.padding = 0.5) +
+  scale_color_manual(values = two_palette) +
   labs(
     title = "Allocated NJ RGGI Funding by Population and Median Income",
     # subtitle = "Population Square-Root Transformed",
@@ -193,14 +194,14 @@ Given the limited availability of climate adaptation funding compared to what is
 
 Increasingly, funders of climate adaptation recognize the need to direct resources to the most vulnerable places. At the level of the Federal government, the United States has now committed to directing resources to the most marginalized places. Under the Justice40 initiative, launched in 2023:
 
-> the Federal government has made it a goal that 40 percent of the overall benefits of certain Federal climate, clean energy, affordable and sustainable housing, and other investments flow to disadvantaged communities that are marginalized by underinvestment and overburdened by pollution.
+> the Federal government has made it a goal that 40 percent of the overall benefits of certain Federal climate, clean energy, affordable and sustainable housing, and other investments flow to disadvantaged communities that are marginalized by underinvestment and overburdened by pollution(About - Climate & Economic Justice Screening Tool, n.d.).
 
 This is an enormous investment in supporting climate adaptation in places that need it most. Yet the question remains of how these vulnerable places are identified---and what blind spots that might still entail.
 
-Various tools have been proposed to identify vulnerable places. In 2003, Cutter et al. created the first social vulnerability index (SoVI), which sought to create a national-scale index of social vulnerability to environmental hazards. The tool was meant to be used to create a scalable way of comparing vulnerability between places at a national level in order to better direct various forms of support, whether monetary, practical, or otherwise.
+Various tools have been proposed to identify vulnerable places. In 2003, Cutter et al. created the first social vulnerability index (SoVI), which sought to create a national-scale index of social vulnerability to environmental hazards (Cutter et al., 2003). The tool was meant to be used to create a scalable way of comparing vulnerability between places at a national level in order to better direct various forms of support, whether monetary, practical, or otherwise.
 
 More recently, in tandem with the Justice40 initiative, the Federal government launched the Climate and Economic Justice Screening Tool (CEJST), which seeks to identify "overburdened and underserved communities" facing challenges related to climate, energy, health, housing, legacy pollution, transportation, water and wastewater, and workforce development.
-CEJST ties explicitly into the context of climate adaptation funding because it is intended to be used to develop "40% of the overall benefits of investments in climate, clean energy, and related areas" to these communities (https://screeningtool.geoplatform.gov/en/about).
+CEJST ties explicitly into the context of climate adaptation funding because it is intended to be used to develop "40% of the overall benefits of investments in climate, clean energy, and related areas" to these communities (About - Climate & Economic Justice Screening Tool, n.d.).
 
 ```{r cejst}
 cejst <- st_read("./data/nj_cejst.geojson", quiet = TRUE) %>% filter(!st_is_empty(geometry))
@@ -226,7 +227,7 @@ Yet, much like existing adaptation funding, these tools take too narrow an appro
 As indices, they conceptualize vulnerability as something running from high to low, on a single axis.
 But as Spielman et al. (2020) write, "vulnerability is not a variable like temperature that runs from hot to cold, but something that manifests itself in many different forms in many different places." Vulnerable places take different forms, having different needs and potential solutions.
 Failing to acknowledge the different types of vulnerable places can result in significant oversights.
-For example, in 2018, researchers at Rutgers University found that "the most economically distressed municipalities in South Jersey receive nearly one third less state aid than similarly impoverished cities and towns in Central and North Jersey" (ttps://whyy.org/articles/study-finds-state-aid-weighted-against-south-jerseys-poorest-cities/).
+For example, in 2018, researchers at Rutgers University found that "the most economically distressed municipalities in South Jersey receive nearly one third less state aid than similarly impoverished cities and towns in Central and North Jersey" (Study Finds State Aid Weighted against South Jersey’s Poorest Cities - WHYY, n.d.). 
 Likewise, climate vulnerability takes decidedly different forms across the state of New Jersey.
 In the north, for example, cities on the Passaic River face routine riparian flooding, yet no risk from sea level rise.
 Meanwhile, southern coastal cities like Atlantic City face a high risk from storm surges and issues with coastal erosion.
@@ -661,3 +662,43 @@ The approach we have outlined in this report provides a valuable framework for e
 To build upon the initial findings and extend the depth of our analysis, we recommend taking several next steps. These include ground-truthing our data, which involves engaging directly with the communities identified as vulnerable, to ensure the accuracy and relevance of our insights. Further integration with ongoing climate adaptation initiatives across the state will also be crucial, as it allows for a more coordinated and comprehensive approach to addressing the challenges these smaller communities face. Additionally, an expanded data collection effort focusing on funding allocation and more granular local data will fill existing gaps and provide a clearer picture of where resources are most needed.
 
 By identifying common challenges and constructing shared solutions, we can develop targeted strategies that not only address the immediate needs but also build long-term resilience. This research thus sets the stage for a more informed and effective allocation of climate adaptation resources, ensuring that all communities, regardless of their size or current capacity, are equipped to face the challenges posed by a changing climate. This approach does not merely adapt to current conditions but anticipates future challenges, fostering a proactive and inclusive model for climate resilience in New Jersey.
+
+## References
+- [About—Climate & Economic Justice Screening Tool](https://screeningtool.geoplatform.gov/en/about)
+- [Accelerating Climate Action in the Most Vulnerable Places](https://www.worldbank.org/en/news/feature/2023/05/31/accelerating-climate-action-in-the-most-vulnerable-places)
+- [Adaptation Finance, Explained | World Resources Institute](https://www.wri.org/insights/adaptation-finance-explained)
+- [Adaptive capacity to climate change: A synthesis of concepts, methods, and findings in a fragmented field—Siders—2019—WIREs Climate Change](https://wires.onlinelibrary.wiley.com/doi/10.1002/wcc.573)
+- [Barrett, S. (2013). Local level climate justice? Adaptation finance and vulnerability reduction. Global Environmental Change, 23(6), 1819–1829.](https://doi.org/10.1016/j.gloenvcha.2013.07.015)
+- [Barrett, S. (2014). Subnational Climate Justice? Adaptation Finance Distribution and Climate Vulnerability. World Development, 58, 130–142.](https://doi.org/10.1016/j.worlddev.2014.01.014)
+- [Colenbrander, S., Dodman, D., & Mitlin, D. (2018). Using climate finance to advance climate justice: The politics and practice of channelling resources to the local level. Climate Policy, 18(7), 902–915.](https://doi.org/10.1080/14693062.2017.1388212)
+- [Coppola, A. (2019). Projects of becoming in a right-sizing shrinking City. Urban Geography, 40(2), 237–256.](https://doi.org/10.1080/02723638.2017.1421391)
+- Cutter, S. L., Boruff, B. J., & Shirley, W. L. (2003). Social Vulnerability to Environmental Hazards. Social Science Quarterly, 84(2), 242–261.
+- [Edmonds, H. K., Lovell, C. A. K., & Lovell, J. E. (2022). The Inequities of National Adaptation to Climate Change. Resources, 12(1), 1.](https://doi.org/10.3390/resources12010001)
+- [Grecksch, K., & Klöck, C. (2020). Access and allocation in climate change adaptation. International Environmental Agreements: Politics, Law and Economics, 20(2), 271–286.](https://doi.org/10.1007/s10784-020-09477-5)
+- [Haase, D., Haase, A., & Rink, D. (2014). Conceptualizing the nexus between urban shrinkage and ecosystem services. Landscape and Urban Planning, 132, 159–169.](https://doi.org/10.1016/j.landurbplan.2014.09.003)
+- [Herrmann, D. L., Chuang, W.-C., Schwarz, K., Bowles, T. M., Garmestani, A. S., Shuster, W. D., Eason, T., Hopton, M. E., & Allen, C. R. (2018). Agroecology for the Shrinking City. Sustainability, 10(3), Article 3.](https://doi.org/10.3390/su10030675)
+- [Herrmann, D. L., Schwarz, K., Shuster, W. D., Berland, A., Chaffin, B. C., Garmestani, A. S., & Hopton, M. E. (2016). Ecology for the Shrinking City. BioScience, 66(11), 965–973.](https://doi.org/10.1093/biosci/biw062)
+- Hollander, J. B. (2010). Moving Toward a Shrinking Cities Metric: Analyzing Land Use Changes Associated With Depopulation in Flint, Michigan. Cityscape, 12(1), 133–151.
+- [Hospers, G.-J. (2014). Policy Responses to Urban Shrinkage: From Growth Thinking to Civic Engagement. European Planning Studies, 22(7), 1507–1523.](https://doi.org/10.1080/09654313.2013.793655)
+- [How Small Towns and Cities Can Use Local Assets to Rebuild Their Economies: Lessons From Successful Places](https://whyy.org/articles/how-small-towns-and-cities-can-use-local-assets-to-rebuild-their-economies-lessons-from-successful-places)
+- [Justice40 Initiative | Environmental Justice | The White House](https://www.whitehouse.gov/environmentaljustice/justice40/)
+- [Marandi, A., & Main, K. L. (2021). Vulnerable City, recipient city, or climate destination? Towards a typology of domestic climate migration impacts in US cities. Journal of Environmental Studies and Sciences, 11(3), 465–480.](https://doi.org/10.1007/s13412-021-00712-2)
+- Mckelvey, G. M. (n.d.). Youngstown 2010 Citywide Plan 3.
+- [Mostafa, M., Rahman, M. F., & Huq, S. (2016). Climate adaptation funding: Getting the money to those who need it. Bulletin of the Atomic Scientists, 72(6), 396–401.](https://doi.org/10.1080/00963402.2016.1240480)
+- [Pallagst, K., Fleschurz, R., & Said, S. (2017). What drives planning in a shrinking city? Tales from two German and two American cases. Town Planning Review, 88(1), 15–28.](https://doi.org/10.3828/tpr.2017.3)
+- Phillips, L. (n.d.). GO NORTH, YOUNG MAN: THE GREAT CLIMATE MIGRATION AND AMERICA’S SHRINKING CITIES. 10.
+- [Rasmussen, D. J., Kopp, R. E., Shwom, R., & Oppenheimer, M. (2021). The Political Complexity of Coastal Flood Risk Reduction: Lessons for Climate Adaptation Public Works in the U.S. Earth’s Future, 9(2), e2020EF001575.](https://doi.org/10.1029/2020EF001575)
+- [Rubin, N. B., Bower, E. R., Herbert, N., Santos, B. S., & Wong-Parodi, G. (2023). Centering equity and sustainability in climate adaptation funding. Environmental Research: Climate, 2(3), 033001.](https://doi.org/10.1088/2752-5295/ace3e9)
+- [Schilling, J., & Logan, J. (2008). Greening the Rust Belt: A Green Infrastructure Model for Right Sizing America’s Shrinking Cities. Journal of the American Planning Association, 74(4), 451–466.](https://doi.org/10.1080/01944360802354956)
+- [Shi, L. (2019). Promise and paradox of metropolitan regional climate adaptation. Environmental Science & Policy, 92, 262–274.](https://doi.org/10.1016/j.envsci.2018.11.002)
+- [Shi, L., & Moser, S. (2021). Transformative climate adaptation in the United States: Trends and prospects. Science, 372(6549), eabc8054.](https://doi.org/10.1126/science.abc8054)
+- [Shrinking ‘Smart’?: Urban Redevelopment and Shrinkage in Youngstown, Ohio](https://www.tandfonline.com/doi/abs/10.1080/02723638.2013.778672)
+- [Spielman, S., Tuccillo, J., Folch, D., Schweikert, A., Davies, R., Wood, N. J., & Tate, E. (2020). Evaluating social vulnerability indicators: Criteria and their application to the Social Vulnerability Index. Natural Hazards, 100(1), 417–436.](https://doi.org/10.1007/s11069-019-03820-z)
+- Stafford, S., & Abramowitz, J. (2017). An analysis of methods for identifying social vulnerability to climate change and sea level rise: A case study of Hampton Roads, Virginia. Natural Hazards, 85(2), 1089–1117.
+- [State and Trends in Climate Adaptation Finance 2023](https://www.climatepolicyinitiative.org/publication/state-and-trends-in-climate-adaptation-finance-2023/)
+- [Study finds state aid weighted against South Jersey’s poorest cities—WHYY](https://whyy.org/articles/study-finds-state-aid-weighted-against-south-jerseys-poorest-cities/)
+- [Sustainability | Free Full-Text | Assessing Potential Impacts of Sea Level Rise on Public Health and Vulnerable Populations in Southeast Florida and Providing a Framework to Improve Outcomes.](https://www.mdpi.com/2071-1050/8/4/315)
+- [Sustainability | Free Full-Text | Sustainability for Shrinking Cities.](https://www.mdpi.com/2071-1050/8/9/911)
+- [The Routledge Handbook of Urban Resilience | Michael A. Burayidi, Adri.](https://www-taylorfrancis-com.proxy.library.upenn.edu/books/edit/10.4324/9780429506666/routledge-handbook-urban-resilience-adriana-allen-michael-burayidi-john-twigg-christine-wamsler)
+- [vonHedemann, N., Breidenbach, T., Carney, C. P., Carr Childers, L., David-Chavez, D. M., Havrilla, C. A., Hill, M., Mahmoud, H., Mueller, N. D., Schultz, C. A., & Stevens-Rumann, C. S. (2023). Climate adaptation research priorities and funding: A review of US federal departments’ climate action plans. Climate Policy, 23(10), 1288–1301.](https://doi.org/10.1080/14693062.2023.2242313)
+- [Weiler, F., Klöck, C., & Dornan, M. (2018). Vulnerability, good governance, or donor interests? The allocation of aid for climate change adaptation. World Development, 104, 65–77.](https://doi.org/10.1016/j.worlddev.2017.11.001)

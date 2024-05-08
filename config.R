@@ -63,9 +63,14 @@ general_palette <- c(
 )
 
 cluster_palette <- c(
-  "2" = "#9abf4e",
+  "2" = "#00b1bf",
   "1" = "#ffb81e",
   "3" = "#ff4f1e"
+)
+
+two_palette <- c(
+  "#052238",
+  "#ff4f1e"
 )
 
 mono_5_orange <- rev(generate_palette(general_palette[5], modification = "go_lighter", n_colours = 5, view_palette = FALSE))
